@@ -1,6 +1,6 @@
 import sys
 from os import listdir
-from os.path import isfile, join
+import os.path as osp
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap
@@ -62,13 +62,14 @@ class ImageFileSelector(QWidget):
         self.grid_layout.setVerticalSpacing(30)
 
         ## Get all the image files in the directory
-        files = [f for f in listdir(album_path) if isfile(join(album_path, f))]
+        files = [f for f in listdir(album_path) if osp.isfile(osp.join(album_path, f))]
         row_in_grid_layout = 0
         first_img_file_path = ''
 
         ## Render a thumbnail in the widget for every image in the directory
         for file_name in files:
-            if filename_has_image_extension(file_name) is False: continue
+            if filename_has_image_extension(file_name) is False:
+                continue
             img_label = QLabel()
             text_label = QLabel()
             img_label.setAlignment(Qt.AlignCenter)
@@ -115,6 +116,24 @@ class ImageFileSelector(QWidget):
         self.display_image.update_display_image(img_file_path)
 
 
+class LeftWin(QTabWidget):
+    def __init__(self, parent=None, album_path='', display_image=None):
+        super(LeftWin, self).__init__(parent)
+        self.setWindowTitle('照片视图')
+        self.image_file_selector = ImageFileSelector(album_path=album_path, display_image=display_image)
+        self.image_face_selector = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        # scroll.setFixedWidth(140)
+        nav = scroll
+        nav.setWidget(self.image_file_selector)
+
+        self.addTab(nav, '文件夹')
+        self.addTab(self.image_face_selector, '人像')
+
+        self.setTabPosition(QTabWidget.South)
+
+
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -128,18 +147,11 @@ class App(QWidget):
 
         ## Make 2 widgets, one to select an image and one to display an image
         self.display_image = DisplayImage(self)
-        self.image_file_selector = ImageFileSelector( \
-            album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, \
-            display_image=self.display_image)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFixedWidth(140)
-        nav = scroll
-        nav.setWidget(self.image_file_selector)
+        self.left_win = LeftWin(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
 
         ## Add the 2 widgets to the main window layout
         layout = QGridLayout(self)
-        layout.addWidget(nav, 0, 0, Qt.AlignLeft)
+        layout.addWidget(self.left_win, 0, 0, Qt.AlignLeft)
         layout.addWidget(self.display_image.label, 0, 1, Qt.AlignRight)
 
         self.init_ui()
