@@ -134,6 +134,25 @@ class LeftWin(QTabWidget):
         self.setTabPosition(QTabWidget.South)
 
 
+class RightWin(QWidget):
+    def __init__(self, parent=None, face_path='', display_image=None):
+        super(RightWin, self).__init__(parent)
+        ## need to change to face
+        self.face_selector = ImageFileSelector(album_path=face_path, display_image=display_image)
+        self.image_info = QLabel(self)
+        self.image_info.setFixedHeight(200)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        nav = scroll
+        nav.setWidget(self.face_selector)
+
+        hbox = QVBoxLayout()
+        hbox.addWidget(nav)
+        hbox.addWidget(self.image_info)
+
+        self.setLayout(hbox)
+
+
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -148,11 +167,13 @@ class App(QWidget):
         ## Make 2 widgets, one to select an image and one to display an image
         self.display_image = DisplayImage(self)
         self.left_win = LeftWin(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
+        self.right_win = RightWin(face_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
 
         ## Add the 2 widgets to the main window layout
         layout = QGridLayout(self)
         layout.addWidget(self.left_win, 0, 0, Qt.AlignLeft)
         layout.addWidget(self.display_image.label, 0, 1, Qt.AlignRight)
+        layout.addWidget(self.right_win, 0, 2, Qt.AlignRight)
 
         self.init_ui()
 
