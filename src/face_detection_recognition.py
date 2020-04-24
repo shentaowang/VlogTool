@@ -101,6 +101,6 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
 if __name__ == "__main__":
     data_path = '../data/data20200402'
     face_size = 160
-    # face_extract(data_path, face_size)
+    face_extract(data_path, face_size)
     face_cluster(data_path, 0.8, 0.9)
 
