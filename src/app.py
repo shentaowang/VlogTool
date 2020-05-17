@@ -187,13 +187,13 @@ class LeftWin(QTabWidget):
         self.setWindowTitle('照片视图')
         self.image_file_selector = ImageFileSelector(album_path=album_path, display_image=display_image)
         self.image_face_selector = QWidget()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
+        scroll0 = QScrollArea()
+        scroll0.setWidgetResizable(True)
         # scroll.setFixedWidth(140)
-        nav = scroll
-        nav.setWidget(self.image_file_selector)
+        nav0 = scroll0
+        nav0.setWidget(self.image_file_selector)
 
-        self.addTab(nav, '文件夹')
+        self.addTab(nav0, '文件夹')
         self.addTab(self.image_face_selector, '人像')
 
         self.setTabPosition(QTabWidget.South)
