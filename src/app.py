@@ -42,7 +42,7 @@ class DisplayImage(QWidget):
         main_window_width = main_window_size.width()
 
         display_image_max_height = main_window_height - 50
-        display_image_max_width = main_window_width - 200
+        display_image_max_width = main_window_width - 400
 
         self.pixmap = QPixmap(self.assigned_img_full_path)
         self.pixmap = self.pixmap.scaled(\
@@ -291,8 +291,8 @@ class App(QWidget):
         self.title = 'Photo Album Viewer'
         self.left = 0
         self.top = 0
-        self.width = 800
-        self.height = 600
+        self.width = 1080
+        self.height = 720
         self.resizeEvent = lambda e : self.on_main_window_resize(e)
 
         ## Make 2 widgets, one to select an image and one to display an image
