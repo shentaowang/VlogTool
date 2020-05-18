@@ -103,7 +103,7 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
 
 
             for idx, path in enumerate(face_files[mask]):
-                shutil.copy(path, os.path.join(face_identity, str(idx)+ '-' + path.split('/')[-1]))
+                shutil.copy(path, os.path.join(face_identity, str(idx) + '-' + path.split(os.sep)[-1]))
 
             cnt_id+=1
             group_image = set(image_files[mask].tolist())
@@ -114,12 +114,12 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
             for path in group_image:
                 image_copied = 0
                 if os.path.exists(path+'.jpg'):
-                    shutil.copy(path+'.jpg', os.path.join(orig_identity, path.split('/')[-1])+'.jpg')
+                    shutil.copy(path+'.jpg', os.path.join(orig_identity, path.split(os.sep)[-1])+'.jpg')
                     image_copied = 1
                 if os.path.exists(path+'.png'):
-                    shutil.copy(path+'.png', os.path.join(orig_identity, path.split('/')[-1])+'.png')
+                    shutil.copy(path+'.png', os.path.join(orig_identity, path.split(os.sep)[-1])+'.png')
                     image_copied = 1
-                assert image_copied==1
+                assert image_copied == 1
 
 
 if __name__ == "__main__":
