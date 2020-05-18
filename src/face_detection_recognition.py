@@ -29,7 +29,11 @@ def face_extract(data_path, face_size):
         boxes, probs = mtcnn.detect(image)
         if boxes is not None:
             for idx, box in enumerate(boxes):
-                prob=probs[idx]
+                prob = probs[idx]
+                box[0] = box[0].clip(0, image.shape[1]-1)
+                box[1] = box[1].clip(0, image.shape[0]-1)
+                box[2] = box[2].clip(0, image.shape[1]-1)
+                box[3] = box[3].clip(0, image.shape[0]-1)
                 face = image[int(box[1]):int(box[3]), int(box[0]):int(box[2]),:]
                 face = cv2.resize(face, (face_size, face_size))
                 input = torch.from_numpy((face-127.5)/128)
@@ -125,6 +129,6 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
 if __name__ == "__main__":
     data_path = '../data/data20200402'
     face_size = 160
-    # face_extract(data_path, face_size)
-    face_cluster(data_path, 0.8, 0.9)
+    face_extract(data_path, face_size)
+    face_cluster(data_path, 0.9, 0.9)
 
