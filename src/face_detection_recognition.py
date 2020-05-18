@@ -43,45 +43,60 @@ def face_extract(data_path, face_size):
 
     return
 
-
 def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
-    save_path = data_file + '_face'
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    data_file = data_file+'_extract'
+    """
+    input the embeddings, out two dictionary. one for cluster the face part image,  one  for cluster the original part
+    image, cation only support .jpg and .png
+    :param data_file: the dictionary contain the full image. which include the face and embedding
+    :param thr_same: the threshold for one image
+    :param thr_face: the threshold for face
+    :return:
+    """
+    save_face_path = data_file + '_face'
+    save_orig_path = data_file + '_orig'
+    if not os.path.exists(save_face_path):
+        os.makedirs(save_face_path)
+    if not os.path.exists(save_orig_path):
+        os.makedirs(save_orig_path)
+    embedding_face_file = data_file+'_extract'
     embeddings = []
     image_files = []
     face_files = []
-    for image_file in os.listdir(data_file):
+    for image_file in os.listdir(embedding_face_file):
         tmp = []
-        for face_file in os.listdir(os.path.join(data_file, image_file)):
+        for face_file in os.listdir(os.path.join(embedding_face_file, image_file)):
+            # filter the low confidence faces
             if '.jpg' in face_file and float(face_file.split('-')[-1][0:6])>thr_face:
-                face_files.append(os.path.join(data_file, image_file, face_file))
+                face_files.append(os.path.join(embedding_face_file, image_file, face_file))
                 embeding_file = face_file[:-4] + '.pkl'
                 embeding_file = embeding_file.replace('face', 'embedding')
-                with open(os.path.join(data_file, image_file, embeding_file), 'rb') as fin:
+                with open(os.path.join(embedding_face_file, image_file, embeding_file), 'rb') as fin:
                     embed = pickle.load(fin)
                     # embed = embed.numpy()
                     # tmp.append(embed[0])
                     tmp.append(embed)
         if len(tmp)>0:
             embeddings += tmp
-            image_files += [image_file]*len(tmp)
+            image_files += [os.path.join(data_file, image_file)]*len(tmp)
 
     embeddings = np.array(embeddings)
     image_files = np.array(image_files)
     face_files  = np.array(face_files)
     dist = cdist(embeddings, embeddings, 'euclidean')
     cnt_id = 0
+    # a simple greedy strategy
     visited = np.zeros((embeddings.shape[0]))
     for i in range(dist.shape[0]):
         part = dist[i]
         mask = ~((part>thr_same) + (visited==1))
         group_embed = embeddings[mask]
         if(group_embed.shape[0]>1):
-            face_identity = os.path.join(save_path, str(cnt_id))
+            face_identity = os.path.join(save_face_path, str(cnt_id))
             if not os.path.exists(face_identity):
                 os.makedirs(face_identity)
+            orig_identity = os.path.join(save_orig_path, str(cnt_id))
+            if not os.path.exists(orig_identity):
+                os.makedirs(orig_identity)
             with open(os.path.join(face_identity, 'embedding.pkl'), 'wb') as fout:
                 pickle.dump(group_embed, fout)
             visited[mask] = 1
@@ -96,11 +111,20 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
                 for image_file in group_image:
                     fout.write(image_file+'\n')
 
+            for path in group_image:
+                image_copied = 0
+                if os.path.exists(path+'.jpg'):
+                    shutil.copy(path+'.jpg', os.path.join(orig_identity, path.split('/')[-1])+'.jpg')
+                    image_copied = 1
+                if os.path.exists(path+'.png'):
+                    shutil.copy(path+'.png', os.path.join(orig_identity, path.split('/')[-1])+'.png')
+                    image_copied = 1
+                assert image_copied==1
 
 
 if __name__ == "__main__":
     data_path = '../data/data20200402'
     face_size = 160
-    face_extract(data_path, face_size)
+    # face_extract(data_path, face_size)
     face_cluster(data_path, 0.8, 0.9)
 

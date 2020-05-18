@@ -63,19 +63,87 @@ class ImageFileSelector(QWidget):
         self.grid_layout.setVerticalSpacing(30)
 
         ## Get all the image files in the directory
-        files = [f for f in listdir(album_path) if osp.isfile(osp.join(album_path, f))]
+        if(album_path!=''):
+            files = [f for f in listdir(album_path) if osp.isfile(osp.join(album_path, f))]
+            row_in_grid_layout = 0
+            first_img_file_path = ''
+
+            ## Render a thumbnail in the widget for every image in the directory
+            for file_name in files:
+                if filename_has_image_extension(file_name) is False:
+                    continue
+                img_label = QLabel()
+                text_label = QLabel()
+                img_label.setAlignment(Qt.AlignCenter)
+                text_label.setAlignment(Qt.AlignCenter)
+                file_path = album_path + file_name
+                pixmap = QPixmap(file_path)
+                pixmap = pixmap.scaled(\
+                    QSize(100, 100), \
+                    Qt.KeepAspectRatio, \
+                    Qt.SmoothTransformation)
+                img_label.setPixmap(pixmap)
+                text_label.setText(file_name)
+                img_label.mousePressEvent = \
+                    lambda e, \
+                    index=row_in_grid_layout, \
+                    file_path=file_path: \
+                        self.on_thumbnail_click(e, index, file_path)
+                text_label.mousePressEvent = img_label.mousePressEvent
+                thumbnail = QBoxLayout(QBoxLayout.TopToBottom)
+                thumbnail.addWidget(img_label)
+                thumbnail.addWidget(text_label)
+                self.grid_layout.addLayout( \
+                    thumbnail, row_in_grid_layout, 0, Qt.AlignCenter)
+
+                if row_in_grid_layout == 0: first_img_file_path = file_path
+                row_in_grid_layout += 1
+
+            ## Automatically select the first file in the list during init
+            self.on_thumbnail_click(None, 0, first_img_file_path)
+
+    def on_thumbnail_click(self, event, index, img_file_path):
+        ## Deselect all thumbnails in the image selector
+        for text_label_index in range(len(self.grid_layout)):
+            text_label = self.grid_layout.itemAtPosition(text_label_index, 0)\
+                .itemAt(1).widget()
+            text_label.setStyleSheet("background-color:none;")
+
+        ## Select the single clicked thumbnail
+        text_label_of_thumbnail = self.grid_layout.itemAtPosition(index, 0)\
+            .itemAt(1).widget()
+        text_label_of_thumbnail.setStyleSheet("background-color:blue;")
+
+        ## Update the display's image
+        self.display_image.update_display_image(img_file_path)
+
+    def update_img_file_path(self, album_path=''):
+        # first clear the layout layout
+        for i in range(self.grid_layout.count()):
+            item = self.grid_layout.itemAt(0)
+            if item is not None:
+                for i in range(item.count()):
+                    item_item = item.itemAt(0)
+                    widget = item_item.widget()
+                    if widget is not None:
+                        item.removeWidget(widget)
+                        widget.deleteLater()
+            self.grid_layout.removeItem(item)
+
+        # show the new album
+        ## Get all the image files in the directory
+        files = [f for f in listdir(album_path) ]
         row_in_grid_layout = 0
-        first_img_file_path = ''
 
         ## Render a thumbnail in the widget for every image in the directory
         for file_name in files:
-            if filename_has_image_extension(file_name) is False:
-                continue
+            if not filename_has_image_extension(file_name):
+                break
             img_label = QLabel()
             text_label = QLabel()
             img_label.setAlignment(Qt.AlignCenter)
             text_label.setAlignment(Qt.AlignCenter)
-            file_path = album_path + file_name
+            file_path = osp.join(album_path, file_name)
             pixmap = QPixmap(file_path)
             pixmap = pixmap.scaled(\
                 QSize(100, 100), \
@@ -95,34 +163,21 @@ class ImageFileSelector(QWidget):
             self.grid_layout.addLayout( \
                 thumbnail, row_in_grid_layout, 0, Qt.AlignCenter)
 
-            if row_in_grid_layout == 0: first_img_file_path = file_path
+            if row_in_grid_layout == 0:
+                first_img_file_path = file_path
             row_in_grid_layout += 1
 
         ## Automatically select the first file in the list during init
         self.on_thumbnail_click(None, 0, first_img_file_path)
 
-    def on_thumbnail_click(self, event, index, img_file_path):
-        ## Deselect all thumbnails in the image selector
-        for text_label_index in range(len(self.grid_layout)):
-            text_label = self.grid_layout.itemAtPosition(text_label_index, 0)\
-                .itemAt(1).widget()
-            text_label.setStyleSheet("background-color:none;")
 
-        ## Select the single clicked thumbnail
-        text_label_of_thumbnail = self.grid_layout.itemAtPosition(index, 0)\
-            .itemAt(1).widget()
-        text_label_of_thumbnail.setStyleSheet("background-color:blue;")
-
-        ## Update the display's image
-        self.display_image.update_display_image(img_file_path)
-
-
-## Widget for selecting an face in the directory to display
+## Widget for selecting an face in the directory to display the list of images
 ## Makes a vertical scrollable widget with selectable image thumbnails
-class FaceImageSelector(QWidget):
-    def __init__(self, parent=None, album_path='', display_image=None):
+class ImageWinSelector(QWidget):
+    def __init__(self, parent=None, album_path='', display_win=None):
         QWidget.__init__(self, parent=parent)
-        self.display_image = display_image
+        # display win have image_file_selector, image_face_selector
+        self.display_win = display_win
         self.grid_layout = QGridLayout(self)
         self.grid_layout.setVerticalSpacing(30)
 
@@ -177,8 +232,11 @@ class FaceImageSelector(QWidget):
             .itemAt(1).widget()
         text_label_of_thumbnail.setStyleSheet("background-color:blue;")
 
-        ## Update the display's image
-        self.display_image.update_display_image(img_file_path)
+        ## update self.display_win.image_face_selector
+        album_path = img_file_path.replace('face', 'orig')
+        album_path = osp.split(album_path)[0]
+        self.display_win.setCurrentIndex(1)
+        self.display_win.image_face_selector.update_img_file_path(album_path)
 
 
 class LeftWin(QTabWidget):
@@ -186,24 +244,32 @@ class LeftWin(QTabWidget):
         super(LeftWin, self).__init__(parent)
         self.setWindowTitle('照片视图')
         self.image_file_selector = ImageFileSelector(album_path=album_path, display_image=display_image)
-        self.image_face_selector = QWidget()
+        self.image_face_selector = ImageFileSelector(album_path='', display_image=display_image)
+        # use for display original images
         scroll0 = QScrollArea()
         scroll0.setWidgetResizable(True)
         # scroll.setFixedWidth(140)
         nav0 = scroll0
         nav0.setWidget(self.image_file_selector)
 
-        self.addTab(nav0, '文件夹')
-        self.addTab(self.image_face_selector, '人像')
+        # use for display one person images
+        scroll1 = QScrollArea()
+        scroll1.setWidgetResizable(True)
+        nav1 = scroll1
+        nav1.setWidget(self.image_face_selector)
 
+        self.addTab(nav0, '文件夹')
+        self.addTab(nav1, '人像')
+
+        # display the tab pos in north
         self.setTabPosition(QTabWidget.South)
 
 
 class RightWin(QWidget):
-    def __init__(self, parent=None, face_path='', display_image=None):
+    def __init__(self, parent=None, face_path='', display_scroll=None):
         super(RightWin, self).__init__(parent)
-        ## need to change to face
-        self.face_selector = FaceImageSelector(album_path=face_path, display_image=display_image)
+        # need to change to face
+        self.face_selector = ImageWinSelector(album_path=face_path, display_win=display_scroll)
         self.image_info = QLabel(self)
         self.image_info.setFixedHeight(200)
         scroll = QScrollArea()
@@ -232,7 +298,7 @@ class App(QWidget):
         ## Make 2 widgets, one to select an image and one to display an image
         self.display_image = DisplayImage(self)
         self.left_win = LeftWin(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
-        self.right_win = RightWin(face_path=DEFAULT_IMAGE_FACE_DIRECTORY, display_image=self.display_image)
+        self.right_win = RightWin(face_path=DEFAULT_IMAGE_FACE_DIRECTORY, display_scroll=self.left_win)
 
         ## Add the 2 widgets to the main window layout
         layout = QGridLayout(self)
