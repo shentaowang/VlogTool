@@ -3,7 +3,9 @@ from os import listdir
 import os.path as osp
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QImage
+import cv2
+import matplotlib.pyplot as plt
 
 DEFAULT_IMAGE_ALBUM_DIRECTORY = '../data/data20200402/'
 DEFAULT_IMAGE_FACE_DIRECTORY = '../data/data20200402_face/'
@@ -284,6 +286,52 @@ class RightWin(QWidget):
         self.setLayout(hbox)
 
 
+class TopMenu(QMenuBar):
+    def __init__(self, parent=None, album_path='', display_image=None):
+        super(TopMenu, self).__init__(parent)
+        self.album_path = album_path
+        self.display_image = display_image
+
+        actionTransfer = self.addMenu("Style Transfer")
+        monet = QAction("&Monet", self)
+        monet.setStatusTip("transform image to monet style")
+        monet.triggered.connect(self.monet_transform)
+        actionTransfer.addAction(monet)
+
+        VanGogh = QAction("&Van Gogh", self)
+        VanGogh.setStatusTip("transform image to Van Gogh style")
+        VanGogh.triggered.connect(self.vangogh_transform)
+        actionTransfer.addAction(VanGogh)
+
+        Cezanne = QAction("&Cezanne", self)
+        Cezanne.setStatusTip("transform image to Cezanne style")
+        Cezanne.triggered.connect(self.cezanne_transform)
+        actionTransfer.addAction(Cezanne)
+
+        Ukiyo = QAction("&Ukiyo-e", self)
+        Ukiyo.setStatusTip("transform image to Ukiyo-e style")
+        Ukiyo.triggered.connect(self.ukiyo_transform)
+        actionTransfer.addAction(Ukiyo)
+
+    def monet_transform(self, q):
+        print(self.display_image.assigned_img_full_path)
+        image = cv2.imread(self.display_image.assigned_img_full_path)
+        self.transform_show(None, image)
+
+    def vangogh_transform(self, q):
+        pass
+
+    def cezanne_transform(self, q):
+        pass
+
+    def ukiyo_transform(self, q):
+        pass
+
+    def transform_show(self, model, image):
+        plt.imshow(image)
+        plt.show()
+
+
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -300,11 +348,15 @@ class App(QWidget):
         self.left_win = LeftWin(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
         self.right_win = RightWin(face_path=DEFAULT_IMAGE_FACE_DIRECTORY, display_scroll=self.left_win)
 
-        # Add the 2 widgets to the main window layout
         layout = QGridLayout(self)
-        layout.addWidget(self.left_win, 0, 0, Qt.AlignLeft)
-        layout.addWidget(self.display_image.label, 0, 1, Qt.AlignRight)
-        layout.addWidget(self.right_win, 0, 2, Qt.AlignRight)
+        # set the menu
+        self.menubar = TopMenu(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
+        layout.addWidget(self.menubar, 0, 0)
+
+        # Add the 2 widgets to the main window layout
+        layout.addWidget(self.left_win, 1, 0, Qt.AlignLeft)
+        layout.addWidget(self.display_image.label, 1, 1, Qt.AlignRight)
+        layout.addWidget(self.right_win, 1, 2, Qt.AlignRight)
 
         self.init_ui()
 
