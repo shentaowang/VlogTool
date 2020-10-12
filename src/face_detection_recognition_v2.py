@@ -6,7 +6,7 @@ import pickle
 import numpy as np
 from scipy.spatial.distance import cdist
 import shutil
-
+from sklearn.cluster import DBSCAN
 
 def face_extract(data_path, face_size):
     """
@@ -57,8 +57,8 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
     :param thr_face: the threshold for face
     :return:
     """
-    save_face_path = data_file + '_face'
-    save_orig_path = data_file + '_orig'
+    save_face_path = data_file + '_face_db'
+    save_orig_path = data_file + '_orig_db'
     if not os.path.exists(save_face_path):
         os.makedirs(save_face_path)
     if not os.path.exists(save_orig_path):
@@ -80,55 +80,49 @@ def face_cluster(data_file, thr_same=0.4, thr_face=0.9):
                     # embed = embed.numpy()
                     # tmp.append(embed[0])
                     tmp.append(embed)
-        if len(tmp)>0:
+        if len(tmp) > 0:
             embeddings += tmp
             image_files += [os.path.join(data_file, image_file)]*len(tmp)
 
     embeddings = np.array(embeddings)
     image_files = np.array(image_files)
     face_files = np.array(face_files)
-    dist = cdist(embeddings, embeddings, 'euclidean')
-    cnt_id = 0
-    # a simple greedy strategy
-    visited = np.zeros((embeddings.shape[0]))
-    for i in range(dist.shape[0]):
-        part = dist[i]
-        mask = ~((part>thr_same) + (visited == 1))
+    clustering = DBSCAN(eps=thr_same, min_samples=2).fit(embeddings)
+    face_ids = set(clustering.labels_.tolist())
+    for face_id in face_ids:
+        mask = clustering.labels_==face_id
         group_embed = embeddings[mask]
-        if group_embed.shape[0] > 1:
-            face_identity = os.path.join(save_face_path, str(cnt_id))
-            if not os.path.exists(face_identity):
-                os.makedirs(face_identity)
-            orig_identity = os.path.join(save_orig_path, str(cnt_id))
-            if not os.path.exists(orig_identity):
-                os.makedirs(orig_identity)
-            with open(os.path.join(face_identity, 'embedding.pkl'), 'wb') as fout:
-                pickle.dump(group_embed, fout)
-            visited[mask] = 1
+        face_identity = os.path.join(save_face_path, str(face_id))
+        if not os.path.exists(face_identity):
+            os.makedirs(face_identity)
+        orig_identity = os.path.join(save_orig_path, str(face_id))
+        if not os.path.exists(orig_identity):
+            os.makedirs(orig_identity)
+        with open(os.path.join(face_identity, 'embedding.pkl'), 'wb') as fout:
+            pickle.dump(group_embed, fout)
 
-            for idx, path in enumerate(face_files[mask]):
-                shutil.copy(path, os.path.join(face_identity, str(idx) + '-' + path.split(os.sep)[-1]))
+        for idx, path in enumerate(face_files[mask]):
+            shutil.copy(path, os.path.join(face_identity, str(idx) + '-' + path.split(os.sep)[-1]))
 
-            cnt_id += 1
-            group_image = set(image_files[mask].tolist())
-            with open(os.path.join(face_identity, 'images.txt'), 'w') as fout:
-                for image_file in group_image:
-                    fout.write(image_file+'\n')
+        group_image = set(image_files[mask].tolist())
+        with open(os.path.join(face_identity, 'images.txt'), 'w') as fout:
+            for image_file in group_image:
+                fout.write(image_file + '\n')
 
-            for path in group_image:
-                image_copied = 0
-                if os.path.exists(path+'.jpg'):
-                    shutil.copy(path+'.jpg', os.path.join(orig_identity, path.split(os.sep)[-1])+'.jpg')
-                    image_copied = 1
-                if os.path.exists(path+'.png'):
-                    shutil.copy(path+'.png', os.path.join(orig_identity, path.split(os.sep)[-1])+'.png')
-                    image_copied = 1
-                assert image_copied == 1
+        for path in group_image:
+            image_copied = 0
+            if os.path.exists(path + '.jpg'):
+                shutil.copy(path + '.jpg', os.path.join(orig_identity, path.split(os.sep)[-1]) + '.jpg')
+                image_copied = 1
+            if os.path.exists(path + '.png'):
+                shutil.copy(path + '.png', os.path.join(orig_identity, path.split(os.sep)[-1]) + '.png')
+                image_copied = 1
+            assert image_copied == 1
 
 
 if __name__ == "__main__":
     data_path = '../data/data20200402'
     face_size = 160
-    face_extract(data_path, face_size)
-    face_cluster(data_path, 0.9, 0.9)
+    # face_extract(data_path, face_size)
+    face_cluster(data_path, 0.8, 0.9)
 

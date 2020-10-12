@@ -6,9 +6,18 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QPixmap, QImage
 import cv2
 import matplotlib.pyplot as plt
+import shutil
+import os
 
-DEFAULT_IMAGE_ALBUM_DIRECTORY = '../data/data20200402/'
-DEFAULT_IMAGE_FACE_DIRECTORY = '../data/data20200402_face/'
+from options.test_options import TestOptions
+from data import create_dataset
+from models import create_model
+from util import util
+
+
+DEFAULT_IMAGE_ALBUM_DIRECTORY = 'data/data20200402/'
+DEFAULT_IMAGE_FACE_DIRECTORY = 'data/data20200402_face/'
+
 
 # Check that a file name has a valid image extension for QPixmap
 def filename_has_image_extension(filename):
@@ -191,6 +200,7 @@ class ImageWinSelector(QWidget):
         # Render a thumbnail in the widget for every image in the directory
         for file_name in files:
             face_display = None
+            face_cnt = len(os.listdir(osp.join(album_path, file_name))) - 2
             for face_name in listdir(osp.join(album_path, file_name)):
                 if filename_has_image_extension(face_name):
                     face_display = face_name
@@ -206,7 +216,8 @@ class ImageWinSelector(QWidget):
                 Qt.KeepAspectRatio, \
                 Qt.SmoothTransformation)
             img_label.setPixmap(pixmap)
-            text_label.setText(file_name)
+            # show the face id and cnt num
+            text_label.setText("id: {}, cnt: {:0>2d}".format(file_name, face_cnt))
             img_label.mousePressEvent = \
                 lambda e, \
                 index=row_in_grid_layout, \
@@ -291,6 +302,39 @@ class TopMenu(QMenuBar):
         super(TopMenu, self).__init__(parent)
         self.album_path = album_path
         self.display_image = display_image
+        self.opt = TestOptions().parse()  # get test options
+        # hard-code some parameters for test
+        # test code only supports num_threads = 1
+        self.opt.num_threads = 0
+        # test code only supports batch_size = 1
+        self.opt.batch_size = 1
+        # disable data shuffling; comment this line if results on randomly chosen images are needed.
+        self.opt.serial_batches = True
+        # no flip; comment this line if results on flipped images are needed.
+        self.opt.no_flip = True
+        # no visdom display; the test code saves the results to a HTML file.
+        self.opt.display_id = -1
+        # match the generator architecture of the trained model
+        self.opt.no_dropout = True
+        self.opt.dataroot = "data/transfer_tmp"
+
+        self.opt.name = "style_monet_pretrained"
+        # create a model given opt.model and other options
+        self.monet_model = create_model(self.opt)
+        # regular setup: load and print networks; create schedulers
+        self.monet_model.setup(self.opt)
+
+        self.opt.name = "style_vangogh_pretrained"
+        self.vango_model = create_model(self.opt)
+        self.vango_model.setup(self.opt)
+
+        self.opt.name = "style_cezanne_pretrained"
+        self.cezanne_model = create_model(self.opt)
+        self.cezanne_model.setup(self.opt)
+
+        self.opt.name = "style_ukiyoe_pretrained"
+        self.ukiyoe_model = create_model(self.opt)
+        self.ukiyoe_model.setup(self.opt)
 
         actionTransfer = self.addMenu("Style Transfer")
         monet = QAction("&Monet", self)
@@ -314,29 +358,43 @@ class TopMenu(QMenuBar):
         actionTransfer.addAction(Ukiyo)
 
     def monet_transform(self, q):
-        print(self.display_image.assigned_img_full_path)
-        image = cv2.imread(self.display_image.assigned_img_full_path)
-        self.transform_show(None, image)
+        self.transform_show(self.monet_model)
 
     def vangogh_transform(self, q):
-        pass
+        self.transform_show(self.vango_model)
 
     def cezanne_transform(self, q):
-        pass
+        self.transform_show(self.cezanne_model)
 
     def ukiyo_transform(self, q):
-        pass
+        self.transform_show(self.ukiyoe_model)
 
-    def transform_show(self, model, image):
-        plt.imshow(image)
-        plt.show()
+    def transform_show(self, model):
+        for file in os.listdir(self.opt.dataroot):
+            os.remove(osp.join(self.opt.dataroot, file))
+        shutil.copy(self.display_image.assigned_img_full_path, self.opt.dataroot)
+        orig_image = cv2.imread(self.display_image.assigned_img_full_path)
+        height, width, _ = orig_image.shape
+        dataset = create_dataset(self.opt)
+        model.eval()
+        for i, data in enumerate(dataset):
+            model.set_input(data)  # unpack data from data loader
+            model.test()  # run inference
+            visuals = model.get_current_visuals()  # get image results
+            for label, image_data in visuals.items():
+                if label == "real":
+                    continue
+                image = util.tensor2im(image_data)
+                image = cv2.resize(image, (width, height))
+                plt.imshow(image)
+                plt.show()
 
 
 class App(QWidget):
     def __init__(self):
         super().__init__()
         # Set main window attributes
-        self.title = 'Photo Album Viewer'
+        self.title = 'Vlog Tool'
         self.left = 0
         self.top = 0
         self.width = 1080
@@ -352,6 +410,22 @@ class App(QWidget):
         # set the menu
         self.menubar = TopMenu(album_path=DEFAULT_IMAGE_ALBUM_DIRECTORY, display_image=self.display_image)
         layout.addWidget(self.menubar, 0, 0)
+
+        # set the button for style transform
+        btn_layout = QGridLayout()
+        self.btn_monet = QPushButton("monet")
+        self.btn_monet.clicked.connect(self.menubar.monet_transform)
+        btn_layout.addWidget(self.btn_monet, 0, 1)
+        self.btn_vangogh = QPushButton("vangogh")
+        self.btn_vangogh.clicked.connect(self.menubar.vangogh_transform)
+        btn_layout.addWidget(self.btn_vangogh, 0, 2)
+        self.btn_cezanne = QPushButton("cezanne")
+        self.btn_cezanne.clicked.connect(self.menubar.cezanne_transform)
+        btn_layout.addWidget(self.btn_cezanne, 0, 3)
+        self.btn_ukiyo = QPushButton("ukiyo")
+        self.btn_ukiyo.clicked.connect(self.menubar.ukiyo_transform)
+        btn_layout.addWidget(self.btn_ukiyo, 0, 4)
+        layout.addLayout(btn_layout, 0, 1)
 
         # Add the 2 widgets to the main window layout
         layout.addWidget(self.left_win, 1, 0, Qt.AlignLeft)
